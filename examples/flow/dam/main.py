@@ -10,9 +10,9 @@ from petsc4py import PETSc
 from basix import ufl as bufl
 import dolfinx as dlx
 from dolfinx.fem.petsc import LinearProblem
-from ufl import (FacetNormal, Measure, TestFunction, TrialFunction, ds, dx, inner, lhs, grad, rhs)
+from ufl import (FacetNormal, Measure, TestFunction, TrialFunction, ds, dx, inner, lhs, grad, rhs, dot)
 
-from utils import required_font_size, required_img_scale
+from utils import required_font_size, required_img_scale, export_boundaries
 
 # --- Creation of required directories ---
 # current working directory
@@ -117,6 +117,13 @@ for i in range(point_coords.shape[0]-1):
 	pressure_values = ph.eval(points, cells)
 	pressure_values.reshape(-1)
 
+integral_x = dlx.fem.form(ph * n[0] * ds(106))
+integral_y = dlx.fem.form(ph * n[1] * ds(106))
+f_x = dlx.fem.assemble_scalar(integral_x)
+f_y = dlx.fem.assemble_scalar(integral_y)
+
+print(f_x, f_y)
+
 	# fig, ax = plt.subplots(1, 1)
 	# if (i == 0) or (i == point_coords.shape[0]-2):
 	# 	ax.plot(pressure_values, points[:, 1], linestyle='--')
@@ -128,78 +135,89 @@ for i in range(point_coords.shape[0]-1):
 	# plt.close()
 
 # --- Saving data to visualize using ParaView ---
-with dlx.io.VTXWriter(comm, ed/'results_pressure.bp', [ph], engine='BP4') as vtx:
-	vtx.write(0.0)
+# with dlx.io.VTXWriter(comm, ed/'results_pressure.bp', [ph], engine='BP4') as vtx:
+# 	vtx.write(0.0)
 
-with dlx.io.VTXWriter(comm, ed/'results_velocity.bp', [uh], engine='BP4') as vtx:
-	vtx.write(0.0)
+# with dlx.io.VTXWriter(comm, ed/'results_velocity.bp', [uh], engine='BP4') as vtx:
+# 	vtx.write(0.0)
+	
+# export_boundaries(ed, mesh, ft)
 
+flux_form = uh[0]*n[0]*ds(105) + uh[1]*n[1]*ds(105)
+
+Q_boundary = dlx.fem.assemble_scalar(dlx.fem.form(flux_form))
+
+flux_form2 = uh[0]*n[0]*ds(104) + uh[1]*n[1]*ds(104)
+
+Q_boundary2 = dlx.fem.assemble_scalar(dlx.fem.form(flux_form2))
+
+print(Q_boundary, Q_boundary2)
 # --- Setting pyvista configuration ---
-if '-offscreen' in sys.argv:
-	pv.OFF_SCREEN = True
+# if '-offscreen' in sys.argv:
+# 	pv.OFF_SCREEN = True
 
-# --- Plotting with pyvista ---
-# Visualization and scaling
-target_width_cm = 18.0
-aspect_ratio = [4, 3]
-base_width_px = 512
-min_dpi = 600
-img_scale, new_dpi = required_img_scale(min_dpi, target_width_cm, base_width_px, aspect_ratio)
-window_size = [base_width_px*aspect_ratio[0], base_width_px*aspect_ratio[1]]
-label_size, title_size = required_font_size(10, target_width_cm, aspect_ratio, window_size)
+# # --- Plotting with pyvista ---
+# # Visualization and scaling
+# target_width_cm = 18.0
+# aspect_ratio = [4, 3]
+# base_width_px = 512
+# min_dpi = 600
+# img_scale, new_dpi = required_img_scale(min_dpi, target_width_cm, base_width_px, aspect_ratio)
+# window_size = [base_width_px*aspect_ratio[0], base_width_px*aspect_ratio[1]]
+# label_size, title_size = required_font_size(10, target_width_cm, aspect_ratio, window_size)
 
-# Create the pyvista-grid for the mesh
-mesh.topology.create_connectivity(mesh.topology.dim, mesh.topology.dim)
-grid = pv.UnstructuredGrid(*dlx.plot.vtk_mesh(mesh, mesh.topology.dim))
+# # Create the pyvista-grid for the mesh
+# mesh.topology.create_connectivity(mesh.topology.dim, mesh.topology.dim)
+# grid = pv.UnstructuredGrid(*dlx.plot.vtk_mesh(mesh, mesh.topology.dim))
 
-# Create the pressure-scalar-field
-topology, cell_types, geometry = dlx.plot.vtk_mesh(Q)
-pressure_grid = pv.UnstructuredGrid(topology, cell_types, geometry)
-pressure_grid.point_data['ph'] = ph.x.array
-sargs = dict(
-	title='pore pressure\n',
-	vertical=False,
-	height=0.1,
-	width=0.4,
-	position_x=0.3,
-	position_y=0.05,
-	unconstrained_font_size=True,
-	title_font_size=title_size,
-	label_font_size=label_size,
-	shadow=True,
-	n_labels=5,
-	fmt="%.1f",
-	font_family="times"
-)
+# # Create the pressure-scalar-field
+# topology, cell_types, geometry = dlx.plot.vtk_mesh(Q)
+# pressure_grid = pv.UnstructuredGrid(topology, cell_types, geometry)
+# pressure_grid.point_data['ph'] = ph.x.array
+# sargs = dict(
+# 	title='pore pressure\n',
+# 	vertical=False,
+# 	height=0.1,
+# 	width=0.4,
+# 	position_x=0.3,
+# 	position_y=0.05,
+# 	unconstrained_font_size=True,
+# 	title_font_size=title_size,
+# 	label_font_size=label_size,
+# 	shadow=True,
+# 	n_labels=5,
+# 	fmt="%.1f",
+# 	font_family="times"
+# )
 
-# Create contours
-mi, ma = round(np.min(pressure_grid['ph']), ndigits=1), round(np.max(pressure_grid['ph']), ndigits=1)
-st = 1.0
-cntrs = np.arange(mi, ma+st, st)
-contours = pressure_grid.contour(isosurfaces=cntrs, scalars='ph')
-contours.points[:, -1] += 0.001 # Correction for visualization
+# # Create contours
+# mi, ma = round(np.min(pressure_grid['ph']), ndigits=1), round(np.max(pressure_grid['ph']), ndigits=1)
+# st = 1.0
+# cntrs = np.arange(mi, ma+st, st)
+# contours = pressure_grid.contour(isosurfaces=cntrs, scalars='ph')
+# contours.points[:, -1] += 0.001 # Correction for visualization
 
-# Create the velocity-vector-field
-topology, cell_types, geometry = dlx.plot.vtk_mesh(V)
-v_values = np.empty((geometry.shape[0], 3), dtype=np.float64)
-v_values[:, :len(uh)] = uh.x.array.real.reshape((geometry.shape[0], len(uh)))
+# # Create the velocity-vector-field
+# topology, cell_types, geometry = dlx.plot.vtk_mesh(V)
+# v_values = np.empty((geometry.shape[0], 3), dtype=np.float64)
+# v_values[:, :len(uh)] = uh.x.array.real.reshape((geometry.shape[0], len(uh)))
 
-velocity_vf = pv.UnstructuredGrid(topology, cell_types, geometry)
-velocity_vf['u'] = v_values
-glyphs = velocity_vf.glyph(orient='u', scale=False, factor=1.0, tolerance=0.015)
+# velocity_vf = pv.UnstructuredGrid(topology, cell_types, geometry)
+# velocity_vf['u'] = v_values
+# glyphs = velocity_vf.glyph(orient='u', scale=False, factor=1.0, tolerance=0.015)
 
-# Create plotter
-plotter = pv.Plotter(window_size=window_size, image_scale=img_scale)
-plotter.add_mesh(grid, style='wireframe', color='gray', opacity=0.3)
-plotter.add_mesh(pressure_grid, show_scalar_bar=True, scalars='ph', clim=[mi, ma], scalar_bar_args=sargs, opacity=0.7)
-plotter.add_mesh(contours, color='black', line_width=4, opacity=1.0)
-plotter.add_mesh(glyphs, color='black', show_scalar_bar=False, opacity=1.0)
-plotter.view_xy()
-plotter.zoom_camera(1.4)
+# # Create plotter
+# plotter = pv.Plotter(window_size=window_size, image_scale=img_scale)
+# plotter.add_mesh(grid, style='wireframe', color='gray', opacity=0.3)
+# plotter.add_mesh(pressure_grid, show_scalar_bar=True, scalars='ph', clim=[mi, ma], scalar_bar_args=sargs, opacity=0.7)
+# plotter.add_mesh(contours, color='black', line_width=4, opacity=1.0)
+# plotter.add_mesh(glyphs, color='black', show_scalar_bar=False, opacity=1.0)
+# plotter.view_xy()
+# plotter.zoom_camera(1.4)
 
-if not pv.OFF_SCREEN:
-	plotter.show()
-else:
-	pv.start_xvfb()
-	plotter.save_graphic(ed/'flow_net.svg')
-	print('The image has been saved!')
+# if not pv.OFF_SCREEN:
+# 	plotter.show()
+# else:
+# 	pv.start_xvfb()
+# 	plotter.save_graphic(ed/'flow_net.svg')
+# 	print('The image has been saved!')
