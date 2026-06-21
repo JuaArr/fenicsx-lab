@@ -1,28 +1,29 @@
 # Hidden directories or files
-.cache
-.cmake
-.config
-.gnupg
-.local
-.vscode-server
+.cache/
+.cmake/
+.config/
+.gnupg/
+.local/
+.vscode-server/
 .bash_history
 .bashrc
 .gitconfig
-.profile
-.wget-hsts
+.profile/
+.wget-hsts/
 .gmshrc
-.lesshst
-.dotnet
-.fltk
+.lesshst/
+.dotnet/
+.fltk/
+.copilot/
 
 # Docker volume
 shared/
 
 # Dependent files
-examples/*/*.msh
-examples/*/*.npy
-examples/*/export/
-examples/*/logs
+examples/**/*.msh
+examples/**/*.npy
+examples/**/export/
+examples/**/logs/
 
 # Cache
-examples/*/__pycache__
+examples/**/__pycache__/
