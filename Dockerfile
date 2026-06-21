@@ -10,6 +10,7 @@ RUN apt-get update && \
     libeigen3-dev \
     bat \
     git \
+    just \
     htop \
     curl \
     unzip \
